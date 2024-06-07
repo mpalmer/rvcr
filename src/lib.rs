@@ -34,7 +34,7 @@ use std::{fs, path::PathBuf, str::FromStr, sync::Mutex};
 
 use base64::{engine::general_purpose, Engine};
 use reqwest_middleware::Middleware;
-use vcr_cassette::{HttpInteraction, RecorderId};
+use vcr_cassette::{Body, HttpInteraction, RecorderId};
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -166,7 +166,7 @@ impl VCRMiddleware {
             Err(e) => {
                 tracing::debug!("Can not deserialize utf-8 string: {e:?}");
                 let base64_str = general_purpose::STANDARD_NO_PAD.encode(body_bytes);
-                vcr_cassette::Body {
+                vcr_cassette::Body::EncodedString {
                     string: base64_str,
                     encoding: Some(BASE64.to_string()),
                 }
@@ -323,9 +323,9 @@ impl VCRMiddleware {
                     diff.push_str("  Body differs:\n");
                     diff.push_str(&format!(
                         "    recorded: \"{}\"\n",
-                        interaction.request.body.string
+                        interaction.request.body
                     ));
-                    diff.push_str(&format!("    got:      \"{}\"\n", req.body.string));
+                    diff.push_str(&format!("    got:      \"{}\"\n", req.body));
                 }
                 diff.push('\n');
             }
@@ -353,25 +353,28 @@ impl VCRMiddleware {
         );
         let builder = builder.version(http_version);
 
-        match response.body.encoding {
-            None => {
-                if !response.body.string.is_empty() {
-                    reqwest::Response::from(builder.body(response.body.string).unwrap())
-                } else {
-                    reqwest::Response::from(builder.body("".as_bytes()).unwrap())
-                }
-            }
-            Some(encoding) => {
-                if encoding == "base64" {
-                    let decoded = general_purpose::STANDARD_NO_PAD
-                        .decode(encoding)
-                        .expect("Invalid response body base64 can not be decoded");
-                    reqwest::Response::from(builder.body(decoded).unwrap())
-                } else {
-                    // FIXME: support more encodings
-                    panic!("Unsupported encoding: {encoding}");
-                }
-            }
+        match response.body {
+            Body::String(s) => reqwest::Response::from(builder.body(s.clone()).unwrap()),
+            Body::EncodedString { encoding, string } => match encoding.as_deref() {
+                Some("base64") => reqwest::Response::from(
+                    builder
+                        .body(
+                            general_purpose::STANDARD_NO_PAD
+                                .decode(string)
+                                .expect("invalid response body, base64 decoding failed"),
+                        )
+                        .unwrap(),
+                ),
+                Some(enc) => panic!("Unsupported encoding: {enc}"),
+                None => reqwest::Response::from(builder.body(string.clone()).unwrap()),
+            },
+            #[cfg(feature = "json")]
+            Body::Json(j) => reqwest::Response::from(
+                builder
+                    .body(serde_json::to_string(&j).expect("invalid JSON response body"))
+                    .unwrap(),
+            ),
+            b => panic!("Unsupported response body specification: {b:?}"),
         }
     }
 

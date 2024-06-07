@@ -1569,11 +1569,12 @@ checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
 [[package]]
 name = "vcr-cassette"
 version = "2.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "364f53759622897886653050d8836272da6ba50f3a4f6ad7065a78ef7141554d"
+source = "git+https://github.com/mpalmer/vcr-cassette.git?branch=full-body-workout#5345e13069d9008a4b17f27ad2eb4ed367f5cbcf"
 dependencies = [
  "chrono",
+ "regex",
  "serde",
+ "serde_json",
  "url",
  "void",
 ]

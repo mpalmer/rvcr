@@ -21,7 +21,9 @@ name = "rvcr"
 [features]
 default = []
 compress = ["dep:zip"]
-
+json = ["vcr-cassette/json"]
+matching = ["vcr-cassette/matching"]
+regex = ["vcr-cassette/regex"]
 
 [dependencies]
 anyhow = "^1"
@@ -46,3 +48,5 @@ tracing-subscriber = { version = "0.3", features = ["registry", "env-filter"] }
 tracing-test = { version = "0.2.4", features = ["no-env-filter"] }
 url = "2.4"
 
+[patch.crates-io]
+vcr-cassette = { git = "https://github.com/mpalmer/vcr-cassette.git", branch = "full-body-workout" }
